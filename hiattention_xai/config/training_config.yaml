@@ -1,0 +1,132 @@
+"""
+Training configuration for HiAttention-XAI model.
+Contains all hyperparameters for model architecture, training, and distributed execution.
+"""
+
+# Model Architecture Configuration
+model:
+  # Embedding dimensions
+  embedding_dim: 256
+  hidden_dim: 128
+  vocab_size: 50257  # CodeT5 vocabulary size
+  max_seq_length: 512
+  
+  # Level 2: Local Context Encoder
+  level2:
+    bilstm_layers: 2
+    attention_heads: 4
+    context_window: 5  # ±5 lines for preceding/following context
+    pretrained_model: "Salesforce/codet5-base"
+  
+  # Level 3: Function Dependency GNN
+  level3:
+    gnn_type: "hybrid"  # gcn, gat, or hybrid
+    gnn_layers: 3
+    gnn_hidden: [256, 256, 256]
+    edge_types: 3  # call, data-flow, module
+  
+  # Level 4: Architectural Context
+  level4:
+    use_modularity: true
+    use_coupling: true
+    use_cohesion: true
+    use_debt: true
+    debt_indicators: 5  # cyclomatic, duplication, long_method, nesting, solid
+  
+  # General
+  dropout: 0.3
+  layer_norm: true
+  activation: "relu"
+
+# Training Hyperparameters
+training:
+  batch_size: 128
+  num_epochs: 50
+  mixed_precision: true  # FP16 for speedup on H100
+  gradient_clip: 1.0
+  
+  # Optimizer
+  optimizer: "adamw"
+  learning_rate: 1.0e-3
+  weight_decay: 1.0e-5
+  betas: [0.9, 0.999]
+  eps: 1.0e-8
+  
+  # Learning rate scheduler
+  scheduler: "cosine_with_warmup"
+  warmup_steps: 1000
+  min_lr: 1.0e-6
+  
+  # Loss function
+  loss_function: "weighted_bce"
+  class_weights:
+    clean: 1.0
+    defective: 10.0  # Handle class imbalance
+  focal_gamma: 2.0  # For focal loss alternative
+  
+  # Regularization
+  l1_weight: 0.0
+  l2_weight: 1.0e-4
+  dropout_schedule: "constant"  # or linear increase
+
+# Distributed Training (HPC)
+distributed:
+  strategy: "ddp"  # Distributed Data Parallel
+  num_gpus: 6  # Using 6 of 8 H100 GPUs
+  backend: "nccl"
+  gradient_accumulation_steps: 1
+  sync_batchnorm: true
+  find_unused_parameters: false
+
+# Data Configuration
+data:
+  train_ratio: 0.8
+  val_ratio: 0.1
+  test_ratio: 0.1
+  shuffle: true
+  num_workers: 8
+  pin_memory: true
+  prefetch_factor: 2
+  
+  # Preprocessing
+  max_function_length: 500  # Max lines per function
+  max_context_functions: 50  # Max functions in call graph
+  max_modules: 20  # Max modules in architectural context
+
+# Evaluation Configuration
+evaluation:
+  eval_interval: 500  # Steps between evaluations
+  eval_patience: 10  # Early stopping patience
+  save_best_only: true
+  metrics:
+    - "recall_at_top20"
+    - "effort_at_top20_recall"
+    - "auroc"
+    - "auprc"
+    - "f1_score"
+    - "precision"
+    - "recall"
+  
+  # Fairness evaluation
+  fairness_attributes:
+    - "language"
+    - "project"
+    - "complexity"
+
+# Logging Configuration
+logging:
+  use_wandb: true
+  wandb_project: "hiattention-xai"
+  wandb_entity: null  # Set in environment
+  log_interval: 100  # Steps
+  save_checkpoints: true
+  checkpoint_dir: "./checkpoints"
+  log_dir: "./logs"
+  save_every_n_epochs: 5
+
+# Experiment metadata
+experiment:
+  name: "hiattention_xai_v1"
+  description: "Hierarchical Attention-based Defect Prediction with Explainability"
+  seed: 42
+  deterministic: false  # For reproducibility (slower)
