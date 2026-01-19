@@ -1,105 +1,182 @@
-import matplotlib.pyplot as plt
+from __future__ import annotations
+
+from pathlib import Path
+
 import numpy as np
-import os
 
-# Create output dir
-os.makedirs('paper/figures', exist_ok=True)
+import plotly.graph_objects as go
 
-# Configurar estilo académico
-# Use a valid style available in most environments or valid fallback
-try:
-    plt.style.use('seaborn-v0_8-paper')
-except:
-    plt.style.use('seaborn-paper')
+# Matplotlib is used only for the attention heatmap (as requested)
+import matplotlib.pyplot as plt
 
-plt.rcParams['font.family'] = 'serif'
-# Try to use Times New Roman, fallback to generic serif
-plt.rcParams['font.serif'] = ['Times New Roman', 'DejaVu Serif', 'serif']
-plt.rcParams['font.size'] = 12
+# --- Paths (robust to current working directory) ---
+PROJECT_ROOT = Path(__file__).resolve().parents[1]  # proposal-draft/
+OUTPUT_DIR = PROJECT_ROOT / "paper" / "figures"
+OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
+
+# Plotly style aligned with: phd-5-federated-computing/images/generate_figures.py
+PLOTLY_TEMPLATE = "plotly_white"
+
+
+# --- Color system (consistent across figures) ---
+# Plotly-friendly colors (similar vibe to the reference script).
+COLORS = {
+    "primary": "#1f77b4",  # Plotly default blue
+    "accent": "#ff7f0e",   # Plotly default orange
+    "neutral_dark": "#4D4D4D",
+    "neutral_light": "#C7C7C7",
+}
+
+# One color per model (consistent across runs/figures)
+MODEL_COLORS = {
+    "DeepLineDP": "#1f77b4",      # blue
+    "PLEASE": "#ff7f0e",          # orange
+    "TF-IDF+LR": "#2ca02c",       # green
+    "LineVul": "#d62728",         # red
+    "HiAttention-XAI": "#9467bd", # purple
+}
+
+
+def _write_outputs(fig: go.Figure, stem: str, *, width: int, height: int) -> None:
+    pdf_path = OUTPUT_DIR / f"{stem}.pdf"
+    html_path = OUTPUT_DIR / f"{stem}.html"
+    fig.write_image(str(pdf_path), width=width, height=height)
+    fig.write_html(str(html_path))
+
+
+def _save_matplotlib_pdf(filename: str, *, dpi: int = 300) -> None:
+    out_path = OUTPUT_DIR / filename
+    plt.savefig(out_path, bbox_inches="tight", dpi=dpi)
+
 
 # --- GRÁFICO 1: COMPARACIÓN ---
 models = ['DeepLineDP', 'PLEASE', 'TF-IDF+LR', 'LineVul', 'HiAttention-XAI']
 f1_scores = [0.380, 0.450, 0.875, 0.930, 0.945]
 
-plt.figure(figsize=(8, 5))
-bars = plt.bar(models, f1_scores, color=['#d9d9d9', '#bdbdbd', '#969696', '#636363', '#000000'])
-plt.ylabel('F1-Score')
-plt.title('Performance Comparison with State-of-the-Art')
-plt.ylim(0, 1.1)
-plt.grid(axis='y', linestyle='--', alpha=0.7)
+bar_colors = [MODEL_COLORS.get(m, COLORS["neutral_light"]) for m in models]
 
-# Añadir valores sobre las barras
-for bar in bars:
-    yval = bar.get_height()
-    plt.text(bar.get_x() + bar.get_width()/2, yval + 0.02, round(yval, 3), ha='center', va='bottom', fontweight='bold')
+fig = go.Figure()
+fig.add_trace(
+    go.Bar(
+        x=models,
+        y=f1_scores,
+        marker_color=bar_colors,
+        marker_line=dict(color=COLORS["neutral_dark"], width=1),
+        text=[f"{v:.3f}" for v in f1_scores],
+        textposition="outside",
+        cliponaxis=False,
+        showlegend=False,
+    )
+)
 
-plt.tight_layout()
-plt.savefig('paper/figures/comparison_chart.pdf')
+fig.update_layout(
+    title="Performance Comparison with State-of-the-Art",
+    xaxis_title="",
+    yaxis_title="F1-Score",
+    template=PLOTLY_TEMPLATE,
+    height=500,
+    width=850,
+    margin=dict(l=70, r=30, t=70, b=70),
+)
+fig.update_yaxes(range=[0, 1.08], gridcolor="#D9D9D9")
+fig.update_xaxes(tickangle=-15)
+
+_write_outputs(fig, "comparison_chart", width=850, height=500)
 print("Generado comparison_chart.pdf")
 
 # --- GRÁFICO 2: ABLACIÓN ---
 variants = ['L2 Only (CodeT5)', 'L2 + L3 (Graph)', 'Full Model (L2+L3+L4)']
 ablation_scores = [0.915, 0.932, 0.945] # Valores hipotéticos coherentes con tu historia
 
-plt.figure(figsize=(8, 5))
-plt.plot(variants, ablation_scores, marker='o', linestyle='-', color='black', linewidth=2, markersize=8)
-plt.fill_between(variants, 0.9, ablation_scores, color='#e0e0e0', alpha=0.5)
-plt.ylabel('F1-Score')
-plt.title('Ablation Study: Impact of Hierarchical Context')
-plt.ylim(0.90, 0.96)
-plt.grid(True, linestyle='--', alpha=0.6)
+fig = go.Figure()
+fig.add_trace(
+    go.Scatter(
+        x=variants,
+        y=ablation_scores,
+        mode="lines+markers+text",
+        line=dict(color=COLORS["primary"], width=3),
+        marker=dict(size=10, color=COLORS["primary"], line=dict(width=1, color="white")),
+        text=[f"{v:.3f}" for v in ablation_scores],
+        textposition="top center",
+        textfont=dict(color=COLORS["neutral_dark"], size=12),
+        showlegend=False,
+    )
+)
 
-for i, txt in enumerate(ablation_scores):
-    plt.annotate(txt, (variants[i], ablation_scores[i]), textcoords="offset points", xytext=(0,10), ha='center')
+fig.update_layout(
+    title="Ablation Study: Impact of Hierarchical Context",
+    xaxis_title="",
+    yaxis_title="F1-Score",
+    template=PLOTLY_TEMPLATE,
+    height=500,
+    width=850,
+    margin=dict(l=70, r=30, t=70, b=90),
+)
+fig.update_yaxes(range=[0.90, 0.96], gridcolor="#D9D9D9")
 
-plt.tight_layout()
-plt.savefig('paper/figures/ablation_chart.pdf')
+_write_outputs(fig, "ablation_chart", width=850, height=500)
 print("Generado ablation_chart.pdf")
 
 # --- GRÁFICO 3: ATTENTION HEATMAP (XAI CASE STUDY) ---
 def plot_attention_heatmap():
-    from matplotlib.colors import LinearSegmentedColormap
     
-    # Sample Vulnerable Code (SQL Injection)
+    # Sample Vulnerable Code (SQL Injection) - Split for clarity/width
     code_lines = [
-        "String query = \"SELECT * FROM users\";",
-        "if (userInput != null) {",
-        "    query += \" WHERE name = '\" + userInput + \"'\";",
-        "}",
+        "String user = request.getParameter(\"user\");",
+        "String query = \"SELECT * FROM users\"",
+        "             + \" WHERE name = '\" + user + \"'\";",
         "Statement stmt = conn.createStatement();",
-        "ResultSet rs = stmt.executeQuery(query);"
+        "ResultSet rs = stmt.executeQuery(query);",
+        "// Vulnerability: Unsanitized input concatenation"
     ]
     
     # Synthetic Attention Weights
     attention_scores = np.array([
-        [0.05],  # SELECT...
-        [0.10],  # if check
-        [0.85],  # query construction (VULNERABILITY)
-        [0.05],  # close brace
+        [0.05],  # getParameter
+        [0.10],  # SELECT part
+        [0.85],  # WHERE part + concatenation (CRITICAL)
         [0.05],  # createStatement
-        [0.10]   # executeQuery
+        [0.05],  # executeQuery
+        [0.00]   # comment
     ])
 
-    plt.figure(figsize=(10, 4))
-    
-    # Custom colormap (White to Red)
-    cmap = LinearSegmentedColormap.from_list("custom", ["#ffffff", "#ffcccc", "#ff0000"])
-    
-    # Plot using imshow
-    plt.imshow(attention_scores, aspect='auto', cmap=cmap, vmin=0, vmax=1)
-    
+    # Keep the original Matplotlib-based look (as requested)
+    try:
+        plt.style.use('seaborn-v0_8-paper')
+    except Exception:
+        try:
+            plt.style.use('seaborn-paper')
+        except Exception:
+            pass
+
+    plt.figure(figsize=(12, 4))  # Wider to ensure text fits
+
+    # Plot using standard Reds colormap
+    plt.imshow(attention_scores, aspect='auto', cmap='Reds', vmin=0, vmax=1)
+
     # Add text
     for i in range(len(code_lines)):
         score = attention_scores[i][0]
-        color = 'white' if score > 0.5 else 'black'
+        # Text color: White on dark red (>0.5), Black on light
+        text_color = 'white' if score > 0.5 else 'black'
+
         # Coordinates: x=-0.45 (left edge), i (y row)
-        plt.text(-0.45, i, f"{code_lines[i]:<40} (Attn: {score:.2f})", 
-                 ha='left', va='center', fontsize=11, family='monospace', color='black', fontweight='bold')
-        
-    plt.axis('off') # Hide axes
+        plt.text(
+            -0.45,
+            i,
+            f"{code_lines[i]}",
+            ha='left',
+            va='center',
+            fontsize=12,
+            family='monospace',
+            color=text_color,
+        )
+
+    plt.axis('off')  # Hide axes
     plt.title('Case Study: XAI Attention Heatmap on Vulnerable Code', fontsize=14, fontweight='bold', pad=20)
     plt.tight_layout()
-    plt.savefig('paper/figures/attention_heatmap.pdf', bbox_inches='tight')
+    _save_matplotlib_pdf('attention_heatmap.pdf', dpi=300)
+    plt.close()
     print("Generado attention_heatmap.pdf")
 
 if __name__ == "__main__":
