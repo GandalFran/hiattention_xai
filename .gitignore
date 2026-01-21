@@ -8,6 +8,7 @@ datasets/
 results/
 logs/
 checkpoints/
+*.h5
 *.pt
 *.json
 *.log

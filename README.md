@@ -1,59 +1,62 @@
-# HiAttention-XAI
+# KG-HiAttention
 
-**Hierarchical Attention-based Deep Learning for Context-Aware Software Defect Localization with Explainability**
+**Synergizing AI-based Knowledge Graphs and Deep Learning for Explainable Software Vulnerability Analysis**
 
 [![Python 3.11+](https://img.shields.io/badge/python-3.11+-blue.svg)](https://www.python.org/downloads/)
-[![PyTorch 2.0+](https://img.shields.io/badge/pytorch-2.0+-red.svg)](https://pytorch.org/)
+[![PyTorch 2.1+](https://img.shields.io/badge/pytorch-2.1+-red.svg)](https://pytorch.org/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
-A novel 5-level hierarchical deep learning architecture for software defect prediction that combines:
+A neuro-symbolic framework for software vulnerability analysis that combines:
 
-- **Level 2**: Local Context Encoder (CodeT5 + BiLSTM + Multi-Head Attention)
-- **Level 3**: Function Dependency GNN (Graph Neural Networks for call/data-flow graphs)
-- **Level 4**: Architectural Context Analyzer (Modularity, Coupling, Cohesion, Technical Debt)
-- **Level 5**: Prediction & Fusion Head with built-in explainability
+- **Semantic Encoding**: Pre-trained CodeT5 transformer for token-level code understanding
+- **Structural Encoding**: Graph Attention Networks (GAT) over a lightweight CPG-based knowledge graph (CFG/DFG)
+- **Expert Knowledge**: Static analysis features for vulnerability patterns
+- **Neuro-Symbolic Fusion**: Multi-modal integration for vulnerability prediction with explainability
+- **Graph-grounded XAI**: Developer-facing explanations via attention attribution and SHAP on program graphs
 
 ## 🎯 Key Features
 
-- **Hierarchical Context**: Captures line, function, and module-level patterns
-- **Graph-based Dependencies**: Models function calls and data flow with GNNs
-- **Built-in Explainability**: Saliency maps, SHAP values, attention visualization
-- **Fairness Analysis**: SPD, EOD, AOD metrics across protected attributes
-- **Industrial Scale**: Designed for multi-million LOC repositories
-- **HPC Ready**: Distributed training on 6+ NVIDIA H100 GPUs
+- **AI-based Knowledge Graphs**: CPG-inspired lightweight program graphs with typed CFG/DFG relations
+- **Neuro-Symbolic Integration**: Combines neural representations (CodeT5) with symbolic structure (GAT over program graphs)
+- **Multi-modal Fusion**: Semantic embeddings + structural graph context + expert static features
+- **Explainability**: Graph-grounded explanations with faithfulness and stability proxies
+- **Real-world Evaluation**: Tested on BigVul dataset (C/C++ vulnerabilities from Linux Kernel, Chrome, FFmpeg)
+- **HPC Ready**: Optimized for single NVIDIA H100 80GB GPU
 
 ## 📊 Architecture
 
 ```
 ┌─────────────────────────────────────────────────────────────┐
-│                  INPUT: Source Code                         │
+│                  INPUT: Source Code Function                │
 └────────────────────────┬────────────────────────────────────┘
                          │
         ┌────────────────┴────────────────┐
+        │                                 │
         ▼                                 ▼
-   Code Parsing                   Dependency Extraction
-   (AST Analysis)                 (Call Graph, Data Flow)
+   Token Sequence                 Lightweight CPG (KG)
+   (CodeT5 tokenizer)            (CFG/DFG relations)
         │                                 │
         └───────────────┬─────────────────┘
                         │
         ┌───────────────▼───────────────────┐
-        │     HiAttention-XAI Model          │
+        │      KG-HiAttention Model          │
         │                                    │
-        │  Level 2: Local Context Encoder   │
-        │  Level 3: Function Dependency GNN │
-        │  Level 4: Architectural Context   │
-        │  Level 5: Prediction + Fusion     │
+        │  Level 1: Input Representation    │
+        │  Level 2: Semantic (CodeT5)       │
+        │  Level 3: Structural (GAT)        │
+        │  Level 4: Expert Knowledge        │
+        │  Level 5: Neuro-Symbolic Fusion   │
         └───────────────┬───────────────────┘
                         │
         ┌───────────────▼───────────────────┐
-        │      Explainability Module        │
-        │  - Saliency Maps                  │
-        │  - SHAP Values                    │
-        │  - Attention Patterns             │
+        │      XAI Module                   │
+        │  - Graph Attention Attribution    │
+        │  - SHAP-style Explanations        │
+        │  - Faithfulness/Stability Proxies │
         └───────────────┬───────────────────┘
                         │
                         ▼
-              Prediction + Explanation
+      Vulnerability Score + Explanation
 ```
 
 ## 🚀 Quick Start
@@ -62,78 +65,75 @@ A novel 5-level hierarchical deep learning architecture for software defect pred
 
 ```bash
 # Clone repository
-git clone https://github.com/GandalFran/hiattention-xai.git
-cd hiattention-xai
+git clone https://github.com/Gandalfran/hiattention_xai.git
+cd hiattention_xai
 
 # Create environment
-conda create -n hiattention python=3.11 -y
-conda activate hiattention
+conda create -n kg_hiattention python=3.11 -y
+conda activate kg_hiattention
 
 # Install dependencies
 pip install -r requirements.txt
 ```
 
+### Dataset Preparation
+
+```bash
+# Download BigVul dataset
+bash scripts/download_datasets.sh
+
+# Preprocess and build program graphs
+python scripts/preprocess_data.py --dataset bigvul --output_dir datasets/processed
+```
+
 ### Training
 
 ```bash
-# Single GPU
-python train.py --config hiattention_xai/config/training_config.yaml
+# Train KG-HiAttention model
+python scripts/full_train_paper.py --config config/training_config.yaml --gpu 0
 
-# Distributed (6 GPUs)
-torchrun --nproc_per_node=6 train.py --config hiattention_xai/config/training_config.yaml --distributed
-```
-
-### Evaluation
-
-```bash
-python evaluate.py --checkpoint checkpoints/best.pt --data_dir datasets/processed
+# Quick training for testing
+python scripts/quick_train.py --epochs 5
 ```
 
 ### Generate Explanations
 
 ```bash
-python explain.py --checkpoint checkpoints/best.pt --code_file sample.py --output_format markdown
+# Generate graph-grounded explanations
+python scripts/visualize_graph_xai.py --checkpoint checkpoints/best.pt --output_dir results/explanations
 ```
 
 ## 📁 Project Structure
 
 ```
 hiattention_xai/
-├── config/             # Training configs, SLURM scripts
-├── data/               # Code parsing, graph building, preprocessing
-│   ├── code_parser.py
-│   ├── graph_builder.py
-│   ├── preprocessor.py
-│   └── defect_seeder.py
-├── models/             # 5-level hierarchical model
-│   ├── local_context.py      # Level 2
-│   ├── function_gnn.py       # Level 3
-│   ├── architectural.py      # Level 4
-│   ├── prediction_head.py    # Level 5
-│   └── hiattention_xai.py    # Complete model
-├── explainability/     # XAI components
-│   ├── saliency.py
-│   ├── shap_explainer.py
-│   ├── attention_viz.py
-│   └── report_generator.py
-├── training/           # Training infrastructure
+├── config/                  # Training configurations
+├── data/                    # CPG/KG building, preprocessing
+│   ├── code_parser.py      # C/C++ code parsing
+│   ├── graph_builder.py    # Lightweight CPG construction
+│   └── preprocessor.py     # Dataset preprocessing
+├── models/                  # Neuro-symbolic models
+│   ├── semantic_encoder.py # CodeT5 encoding
+│   ├── graph_encoder.py    # GAT for program graphs
+│   ├── expert_encoder.py   # Static feature projection
+│   └── kg_hiattention.py   # Complete fusion model
+├── explainability/          # XAI components
+│   ├── attribution.py      # Graph-based attribution
+│   ├── shap_explainer.py   # SHAP integration
+│   └── faithfulness.py     # Faithfulness/stability metrics
+├── training/                # Training infrastructure
 │   ├── trainer.py
-│   ├── losses.py
 │   └── metrics.py
-├── evaluation/         # Evaluation framework
+├── evaluation/              # Evaluation framework
 │   └── evaluator.py
-└── utils/              # Utilities
-    ├── logging_utils.py
-    └── visualization.py
+└── utils/                   # Utilities
 
-dataset.rar             # Compressed HDF5 datasets (extract to use)
-                        # Contains: train.h5 (20K), val.h5 (5K), test.h5 (5K)
-
-scripts/                # HPC and data scripts
-tests/                  # Unit tests
-train.py               # Training entry point
-evaluate.py            # Evaluation entry point
-explain.py             # Explanation generation
+scripts/                     # Experiment scripts
+├── download_datasets.sh     # Dataset acquisition
+├── preprocess_data.py       # Data preprocessing
+├── full_train_paper.py      # Main training script
+├── quick_train.py           # Quick training for testing
+└── visualize_graph_xai.py   # XAI visualization
 ```
 
 ## 🖥️ HPC Usage
@@ -141,58 +141,60 @@ explain.py             # Explanation generation
 ### Setup Environment
 
 ```bash
+# Setup conda environment on HPC
 bash scripts/setup_hpc_env.sh
 ```
 
-### Download Datasets
+### Download BigVul Dataset
 
 ```bash
+# Download and extract BigVul dataset
 bash scripts/download_datasets.sh ./datasets
 ```
 
 ### Run Training on HPC
 
 ```bash
+# Run training with SLURM
+sbatch scripts/slurm_full_paper.sh
+
+# Or run directly
 bash scripts/run_training.sh
 ```
 
-Or submit via SLURM:
+## 📈 Results on BigVul Dataset
+
+Performance comparison on the BigVul test set (C/C++ vulnerabilities):
+
+| Model | AUC-ROC | Recall | Explainability |
+|-------|---------|--------|----------------|
+| **Hybrid Ensemble (Strong baseline)** | **0.7785** | **0.92** | Feature Importance |
+| CodeT5-Base | 0.7390 | 0.82 | Attention Weights |
+| **KG-HiAttention (Ours)** | 0.7372 | 0.87 | **Graph/Attention + SHAP** |
+
+**Key Insights:**
+- KG-HiAttention remains competitive with strong baselines while providing graph-grounded explanations
+- The neuro-symbolic architecture enables developer-facing explanations aligned to code structure
+- Explainability is complemented with faithfulness (deletion/insertion AUC: 0.847/0.823) and stability (mean consistency: 0.893) proxies
+
+## 🔬 Reproducing Paper Results
+
+To reproduce the results from the paper:
 
 ```bash
-sbatch hiattention_xai/config/slurm_job.sh
+# 1. Preprocess BigVul dataset
+python scripts/preprocess_data.py --dataset bigvul
+
+# 2. Train baselines
+python scripts/train_baseline.py --model codet5 --output_dir results/codet5
+python scripts/train_baseline.py --model hybrid --output_dir results/hybrid
+
+# 3. Train KG-HiAttention
+python scripts/full_train_paper.py --output_dir results/kg_hiattention
+
+# 4. Evaluate explainability
+python scripts/visualize_graph_xai.py --checkpoint results/kg_hiattention/best.pt
 ```
-
-## 📊 Dataset Information
-
-The `dataset/` folder contains (compresed in a rar file) preprocessed HDF5 files ready for training and evaluation. The **"Context-Sensitive" validation protocol** generates controlled datasets with deterministic vulnerability patterns (SQL injection, buffer overflows, null dereferences, etc.) to rigorously validate the architecture's ability to capture specific defect structures.
-
-### Dataset Files
-
-| File | Samples | Description |
-|------|---------|-------------|
-| `train.h5` | 20,000 | Training dataset for model optimization |
-| `val.h5` | 5,000 | Validation dataset for hyperparameter tuning |
-| `test.h5` | 5,000 | Test dataset for final evaluation |
-
-### Dataset Generation
-
-To regenerate or modify the dataset:
-
-```bash
-# Generate synthetic context-sensitive dataset
-python scripts/generate_full_dataset.py
-
-# Or generate with custom parameters
-python scripts/generate_synthetic.py --samples 25000 --max-length 256
-```
-
-## �📈 Expected Results
-
-| Metric | HiAttention-XAI | PLEASE | LineVul |
-|--------|-----------------|--------|---------|
-| Recall@Top20% | **0.75** | 0.67 | 0.58 |
-| F1 Score | **0.52** | 0.45 | 0.41 |
-| AUC-ROC | **0.87** | 0.82 | 0.78 |
 
 ## 📜 License
 
